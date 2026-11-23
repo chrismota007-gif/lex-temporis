@@ -1,0 +1,1 @@
+CREATE DATABASE lex_temporis_validacao;
