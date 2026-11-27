@@ -1,19 +1,30 @@
--- 1. Carga massiva: 1 milhão de versões contíguas (janelas de 10 dias) no dispositivo 999
-INSERT INTO dispositivo (id, documento_id, tipo, identificador, dispositivo_pai_id)
-VALUES (999, 1, 'ARTIGO', 'Art. Benchmark', NULL);
+-- 1. Carga massiva idempotente: 1 milhão de versões contíguas (janelas de 10 dias) no dispositivo 999
+INSERT INTO documento_legal (id, tipo, numero, ano, ementa, data_publicacao)
+VALUES (1, 'DECRETO-LEI', '2848', 1940, 'Código Penal', '1940-12-31')
+ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO versao_texto
-    (dispositivo_id, texto, tipo_alteracao, data_inicio_vigencia, data_fim_vigencia)
-SELECT
-    999,
-    'Texto de carga massiva ' || i,
-    CASE WHEN i = 1 THEN 'REDACAO_ORIGINAL' ELSE 'NOVA_REDACAO' END,
-    DATE '1000-01-01' + ((i - 1) * 10),
-    CASE WHEN i < 1000000
-         THEN DATE '1000-01-01' + (i * 10) - 1
-         ELSE NULL
-    END
-FROM generate_series(1, 1000000) AS i;
+INSERT INTO dispositivo (id, documento_id, tipo, identificador, dispositivo_pai_id)
+VALUES (999, 1, 'ARTIGO', 'Art. Benchmark', NULL)
+ON CONFLICT (id) DO NOTHING;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM versao_texto WHERE dispositivo_id = 999) THEN
+        INSERT INTO versao_texto
+            (dispositivo_id, texto, tipo_alteracao, data_inicio_vigencia, data_fim_vigencia)
+        SELECT
+            999,
+            'Texto de carga massiva ' || i,
+            CASE WHEN i = 1 THEN 'REDACAO_ORIGINAL' ELSE 'NOVA_REDACAO' END,
+            DATE '1000-01-01' + ((i - 1) * 10),
+            CASE WHEN i < 1000000
+                 THEN DATE '1000-01-01' + (i * 10) - 1
+                 ELSE NULL
+            END
+        FROM generate_series(1, 1000000) AS i;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
 
 VACUUM ANALYZE versao_texto;
 
@@ -70,7 +81,8 @@ BEGIN
 
     RAISE NOTICE 'Benchmark (1000 consultas no dispositivo 999): p50 = % ms | p95 = % ms | p99 = % ms',
         round(v_p50::numeric, 3), round(v_p95::numeric, 3), round(v_p99::numeric, 3);
-END $$;
+END;
+$$ LANGUAGE plpgsql;
 
 -- 4. Comparativo sem uso de índices (Parallel Seq Scan)
 BEGIN;
