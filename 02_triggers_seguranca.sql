@@ -1,3 +1,9 @@
+-- Limpeza idempotente de gatilhos anteriores
+DROP TRIGGER IF EXISTS trg_no_delete ON versao_texto;
+DROP TRIGGER IF EXISTS trg_no_truncate ON versao_texto;
+DROP TRIGGER IF EXISTS trg_no_update_texto ON versao_texto;
+DROP TRIGGER IF EXISTS trg_no_update_historico ON versao_texto;
+
 -- 1. Bloqueio de exclusão física (DELETE e TRUNCATE)
 CREATE OR REPLACE FUNCTION trg_bloqueia_delete()
 RETURNS TRIGGER AS $$
