@@ -1,7 +1,7 @@
 -- Extensão necessária para restrição de exclusão combinando inteiro (=) e intervalo (&&)
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
-CREATE TABLE documento_legal (
+CREATE TABLE IF NOT EXISTS documento_legal (
     id SERIAL PRIMARY KEY,
     tipo VARCHAR(50) NOT NULL,
     numero VARCHAR(20) NOT NULL,
@@ -11,7 +11,7 @@ CREATE TABLE documento_legal (
     UNIQUE (tipo, numero, ano)
 );
 
-CREATE TABLE dispositivo (
+CREATE TABLE IF NOT EXISTS dispositivo (
     id SERIAL PRIMARY KEY,
     documento_id INT NOT NULL,
     tipo VARCHAR(50) NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE dispositivo (
     FOREIGN KEY (dispositivo_pai_id) REFERENCES dispositivo(id) ON DELETE RESTRICT
 );
 
-CREATE TABLE versao_texto (
+CREATE TABLE IF NOT EXISTS versao_texto (
     id SERIAL PRIMARY KEY,
     dispositivo_id INT NOT NULL,
     texto TEXT NOT NULL,
@@ -42,12 +42,4 @@ CREATE TABLE versao_texto (
 );
 
 -- Impede sobreposição temporal (e duplo NULL) + cria automaticamente o índice GiST
-ALTER TABLE versao_texto ADD CONSTRAINT sem_sobreposicao
-EXCLUDE USING gist (
-    dispositivo_id WITH =,
-    daterange(
-        data_inicio_vigencia,
-        COALESCE(data_fim_vigencia, 'infinity'::date),
-        '[]'
-    ) WITH &&
-);
+DO $$ BEGIN IF NOT EXISTS ( SELECT 1 FROM pg_constraint WHERE conname = 'sem_sobreposicao' AND conrelid = 'versao_texto'::regclass ) THEN ALTER TABLE versao_texto ADD CONSTRAINT sem_sobreposicao EXCLUDE USING gist ( dispositivo_id WITH =, daterange( data_inicio_vigencia, COALESCE(data_fim_vigencia, 'infinity'::date), '[]' ) WITH && ); END IF; END; $$ LANGUAGE plpgsql;
