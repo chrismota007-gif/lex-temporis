@@ -42,4 +42,23 @@ CREATE TABLE IF NOT EXISTS versao_texto (
 );
 
 -- Impede sobreposição temporal (e duplo NULL) + cria automaticamente o índice GiST
-DO $$ BEGIN IF NOT EXISTS ( SELECT 1 FROM pg_constraint WHERE conname = 'sem_sobreposicao' AND conrelid = 'versao_texto'::regclass ) THEN ALTER TABLE versao_texto ADD CONSTRAINT sem_sobreposicao EXCLUDE USING gist ( dispositivo_id WITH =, daterange( data_inicio_vigencia, COALESCE(data_fim_vigencia, 'infinity'::date), '[]' ) WITH && ); END IF; END; $$ LANGUAGE plpgsql;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'sem_sobreposicao'
+          AND conrelid = 'versao_texto'::regclass
+    ) THEN
+        ALTER TABLE versao_texto ADD CONSTRAINT sem_sobreposicao
+        EXCLUDE USING gist (
+            dispositivo_id WITH =,
+            daterange(
+                data_inicio_vigencia,
+                COALESCE(data_fim_vigencia, 'infinity'::date),
+                '[]'
+            ) WITH &&
+        );
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
